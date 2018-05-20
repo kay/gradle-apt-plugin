@@ -140,3 +140,5 @@ fun String.execute(envp: Array<String>?, workingDir: File?) =
 
 val Process.text: String
     get() = inputStream.bufferedReader().readText()
+
+apply(from = "gradle/circleci.gradle.kts")
