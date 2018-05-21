@@ -17,6 +17,11 @@ platforms:
     docker:
       - image: circleci/openjdk:9-jdk
     
+  - &java10
+    <<: *defaults
+    docker:
+      - image: circleci/openjdk:10-jdk
+    
 
 caches:
   workspace:
@@ -52,6 +57,16 @@ caches:
       restore_cache:
         keys:
           - v1-gradle-java9-{{ checksum "build.gradle.kts" }}
+    
+    - &save-gradle-dependencies-java10
+      save_cache:
+        key: v1-gradle-java10-{{ checksum "build.gradle.kts" }}
+        paths:
+          - ~/.gradle/caches/modules-*/files-*/
+    - &restore-gradle-dependencies-java10
+      restore_cache:
+        keys:
+          - v1-gradle-java10-{{ checksum "build.gradle.kts" }}
     
   wrapper:
     - &save-gradle-wrapper-current
@@ -332,6 +347,20 @@ jobs:
       - *store-test-results
       - *save-gradle-wrapper-current
       - *save-gradle-dependencies-java9
+      - *persist-workspace
+    
+  java10:
+    <<: *java10
+    steps:
+      - *attach-workspace
+      - *restore-gradle-dependencies-java10
+      - *restore-gradle-wrapper-current
+      - run:
+          name: Build
+          command: ./gradlew build
+      - *store-test-results
+      - *save-gradle-wrapper-current
+      - *save-gradle-dependencies-java10
       - *persist-workspace
     
   java8_gradle46:
@@ -710,6 +739,10 @@ workflows:
             - checkout_code
     
       - java9:
+          requires:
+            - java8
+    
+      - java10:
           requires:
             - java8
     

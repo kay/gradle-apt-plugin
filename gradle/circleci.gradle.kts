@@ -1,5 +1,5 @@
 task("generateCircleciConfig", GenerateCircleciConfig::class) {
-    jdks = listOf(8, 9)
+    jdks = listOf(8, 9, 10)
     crossVersion = mapOf(
         "gradle46" to CrossVersion("4.6", listOf(8, 9)),
         "gradle45" to CrossVersion("4.5.1", listOf(8, 9)),
