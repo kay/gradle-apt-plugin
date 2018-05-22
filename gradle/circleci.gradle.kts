@@ -1,3 +1,5 @@
+import org.gradle.util.GradleVersion
+
 task("generateCircleciConfig", GenerateCircleciConfig::class) {
     jdks = listOf(8, 9, 10)
     crossVersion = mapOf(
@@ -78,36 +80,33 @@ open class GenerateCircleciConfig : DefaultTask() {
                 """
                 - &save-gradle-dependencies-java$it
                   save_cache:
-                    key: v1-gradle-java$it-{{ checksum "build.gradle.kts" }}
+                    name: Saving Gradle dependencies
+                    key: v2-gradle-java$it-{{ checksum "build.gradle.kts" }}
                     paths:
-                      - ~/.gradle/caches/modules-*/files-*/
+                      - ~/.gradle/caches/modules-*/
                 - &restore-gradle-dependencies-java$it
                   restore_cache:
+                    name: Restoring Gradle dependencies
                     keys:
-                      - v1-gradle-java$it-{{ checksum "build.gradle.kts" }}
+                      - v2-gradle-java$it-{{ checksum "build.gradle.kts" }}
                 """
             }.joinToString(separator = "") + """
               wrapper:
-                - &save-gradle-wrapper-current
-                  save_cache:
-                    key: v1-gradle-wrapper-current-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
-                    paths:
-                      - ~/.gradle/wrapper/dists/
-                - &restore-gradle-wrapper-current
-                  restore_cache:
-                    keys:
-                      - v1-gradle-wrapper-current-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
-            """ + crossVersion.map { (name, version) ->
+            """ + (setOf(GradleVersion.current().getVersion()) + crossVersion.values.asSequence().map(CrossVersion::gradle)).map {
                 """
-                - &save-gradle-wrapper-$name
+                - &save-gradle-wrapper-${it.replace('.', '-')}
                   save_cache:
-                    key: v1-gradle-wrapper-${version.gradle}
+                    name: Saving Gradle wrapper $it
+                    key: v1-gradle-wrapper-$it
                     paths:
-                      - ~/.gradle/wrapper/dists/gradle-${version.gradle}-bin/
-                - &restore-gradle-wrapper-$name
+                      - ~/.gradle/wrapper/dists/gradle-$it-bin/
+                - &restore-gradle-wrapper-${it.replace('.', '-')}
                   restore_cache:
+                    name: Restoring Gradle wrapper $it
                     keys:
-                      - v1-gradle-wrapper-${version.gradle}
+                      - v1-gradle-wrapper-$it
+                      - v1-gradle-wrapper-gradle${it.splitToSequence(delimiters = ".").take(2).joinToString(separator = "")}
+                      - v1-gradle-wrapper-current
                 """
             }.joinToString(separator = "") + """
 
@@ -127,12 +126,12 @@ open class GenerateCircleciConfig : DefaultTask() {
                 steps:
                   - *attach-workspace
                   - *restore-gradle-dependencies-java$it
-                  - *restore-gradle-wrapper-current
+                  - *restore-gradle-wrapper-${GradleVersion.current().getVersion().replace('.', '-')}
                   - run:
                       name: Build
                       command: ./gradlew build
                   - *store-test-results
-                  - *save-gradle-wrapper-current
+                  - *save-gradle-wrapper-${GradleVersion.current().getVersion().replace('.', '-')}
                   - *save-gradle-dependencies-java$it
                   - *persist-workspace
                 """
@@ -143,13 +142,13 @@ open class GenerateCircleciConfig : DefaultTask() {
                 steps:
                   - *attach-workspace
                   - *restore-gradle-dependencies-java$it
-                  - *restore-gradle-wrapper-current
-                  - *restore-gradle-wrapper-$name
+                  - *restore-gradle-wrapper-${GradleVersion.current().getVersion().replace('.', '-')}
+                  - *restore-gradle-wrapper-${version.gradle.replace('.', '-')}
                   - run:
                       name: Test against Gradle ${version.gradle}
                       command: ./gradlew test -Ptest.gradle-version=${version.gradle}
                   - *store-test-results
-                  - *save-gradle-wrapper-$name
+                  - *save-gradle-wrapper-${version.gradle.replace('.', '-')}
                     """
                 }
             }.joinToString(separator = "") + """
